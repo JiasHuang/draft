@@ -1,0 +1,34 @@
+<root>
+
+<options>
+
+    <option>
+        <name>input</name>
+        <ctype>char*</ctype>
+        <has_arg>required_argument</has_arg>
+        <usage>-i, --input file</usage>
+        <desc>input file</desc>
+	<array>16</array>
+    </option>
+
+    <option>
+        <name>output</name>
+        <ctype>char*</ctype>
+        <has_arg>required_argument</has_arg>
+        <usage>-o, --output file</usage>
+        <desc>output file</desc>
+	<default>out.log</default>
+    </option>
+
+    <option>
+        <name>show-version</name>
+        <ctype>char</ctype>
+        <has_arg>no_argument</has_arg>
+        <usage>--show-verion</usage>
+        <desc>show version</desc>
+    </option>
+
+
+</options>
+
+</root>
