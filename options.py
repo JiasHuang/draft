@@ -59,13 +59,11 @@ static void xopt_parse_args(struct xopt *xopt, int argc, char **argv)
 {
     int opt;
 
-    struct xopt _def = {
-        @CODE_DEFAULT
-    };
+    memset(xopt, 0, sizeof(*xopt));
 
-    memcpy(xopt, &_def, sizeof(_def));
+    @CODE_DEFAULT
 
-    while ((opt = getopt_long (argc, argv, XOPT_SHORT_OPTIONS, xopt_long_options, NULL)) != -1)
+    while ((opt = getopt_long (argc, argv, XOPT_SHORT_OPTIONS, xopt_long_options, NULL)) != -1) {
         switch (opt) {
             @CODE_PARSE
             case XOPT_HELP:
@@ -74,6 +72,7 @@ static void xopt_parse_args(struct xopt *xopt, int argc, char **argv)
                 exit(0);
                 break;
         }
+    }
 }
 
 """
@@ -205,9 +204,9 @@ def genCode_default(options):
         default = o.get('default')
         if default:
             if ctype == 'char*':
-                lines.append('.%s = "%s",' %(cname, default))
+                lines.append('xopt->%s = (char*)"%s";' %(cname, default))
             else:
-                lines.append('.%s = %s,' %(cname, default))
+                lines.append('xopt->%s = %s;' %(cname, default))
     if len(lines) > 0:
         return '\n'.join(lines)
     return '0'

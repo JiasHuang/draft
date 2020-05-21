@@ -6,9 +6,7 @@ TARGET = test
 
 include $(wildcard *.mk)
 
-all: options $(TARGET)
-
-options: options.h
+all: options.h $(TARGET)
 
 options.h: options.py options.xml
 	./options.py -i options.xml -o options.h

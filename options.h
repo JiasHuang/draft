@@ -46,13 +46,11 @@ static void xopt_parse_args(struct xopt *xopt, int argc, char **argv)
 {
     int opt;
 
-    struct xopt _def = {
-        .output = "out.log",
-    };
+    memset(xopt, 0, sizeof(*xopt));
 
-    memcpy(xopt, &_def, sizeof(_def));
+    xopt->output = (char*)"out.log";
 
-    while ((opt = getopt_long (argc, argv, XOPT_SHORT_OPTIONS, xopt_long_options, NULL)) != -1)
+    while ((opt = getopt_long (argc, argv, XOPT_SHORT_OPTIONS, xopt_long_options, NULL)) != -1) {
         switch (opt) {
             case 'i':
             case XOPT_INPUT:
@@ -74,6 +72,7 @@ static void xopt_parse_args(struct xopt *xopt, int argc, char **argv)
                 exit(0);
                 break;
         }
+    }
 }
 
 
