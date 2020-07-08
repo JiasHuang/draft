@@ -31,11 +31,12 @@ struct new_t {
 
 static void output(@struct_new *p)
 {
-    if (p->a) printf(".a = %d,", p->a);
-    if (p->b) printf(".b = %d,", p->b);
-    if (p->c) printf(".c = %d,", p->c);
-    if (p->d) printf(".d = %d,", p->d);
-    printf("\\n");
+    printf("@start\\n");
+    if (p->a) printf("\\t.a = %d,\\n", p->a);
+    if (p->b) printf("\\t.b = %d,\\n", p->b);
+    if (p->c) printf("\\t.c = %d,\\n", p->c);
+    if (p->d) printf("\\t.d = %d,\\n", p->d);
+    printf("@end\\n");
 }
 
 static void convert(@struct_new *p, @struct_old *old)
@@ -114,23 +115,23 @@ def cleanup():
         os.system('rm -f __code__*')
         return
 
-def ctext_format(txt, vname):
+def indent(txt, vname):
     global struct_new
     res = []
-    lines = txt.splitlines()
-    res.append('%s %s = {' %(struct_new, vname))
-    if (len(lines) > 1):
-        for l in lines:
-            res.append('\t{')
-            l = l.replace('.', '\t\t.')
-            l = l.replace(',', ',\n')
-            res.append(l)
-            res.append('\t},')
+    if re.search(r'\[', vname):
+        _start = '{\n'
+        _end = '},\n'
+        _tab = '\t'
     else:
-        for l in lines:
-            l = l.replace('.', '\t.')
-            l = l.replace(',', ',\n')
-            res.append(l)
+        _start = ''
+        _end = ''
+        _tab = ''
+
+    txt = txt.replace('@start\n', _start)
+    txt = txt.replace('@end\n', _end)
+    res.append('%s %s = {' %(struct_new, vname))
+    for l in txt.splitlines():
+        res.append(_tab + l)
     res.append('};')
     return '\n'.join(res)
 
@@ -144,7 +145,7 @@ def main():
             vname = m.group(1)
             print('converting %s:%s ...' %(f, vname))
             new_vtext = convert(vtext, vname)
-            new_vtext = ctext_format(new_vtext, vname)
+            new_vtext = indent(new_vtext, vname)
             text = text.replace(vtext, new_vtext)
             saveLocal(f, text)
     cleanup()
