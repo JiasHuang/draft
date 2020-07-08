@@ -50,8 +50,19 @@ static struct option xopt_long_options[] = {
 
 #define XOPT_SHORT_OPTIONS "@CODE_SHORT_OPTIONS"
 
+static void (*xopt_print_usage_callback_func)(void *arg) = NULL;
+static void *xopt_print_usage_callback_arg = NULL;
+
+static void xopt_install_usage_callback(void (*func)(void*), void *arg)
+{
+    xopt_print_usage_callback_func = func;
+    xopt_print_usage_callback_arg = arg;
+}
+
 static void xopt_print_usage ()
 {
+    if (xopt_print_usage_callback_func)
+        xopt_print_usage_callback_func(xopt_print_usage_callback_arg);
     @CODE_USAGE
 }
 
