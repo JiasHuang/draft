@@ -29,17 +29,13 @@ struct new_t {
 
 @vtext
 
-"""
-
-code_text_body_1 = """
 static void output(@struct_new *p)
 {
-    printf("struct new_t @vname = {\\n");
-    if (p->a) printf("\\t.a = %d,\\n", p->a);
-    if (p->b) printf("\\t.b = %d,\\n", p->b);
-    if (p->c) printf("\\t.c = %d,\\n", p->c);
-    if (p->d) printf("\\t.d = %d,\\n", p->d);
-    printf("};\\n");
+    if (p->a) printf(".a = %d,", p->a);
+    if (p->b) printf(".b = %d,", p->b);
+    if (p->c) printf(".c = %d,", p->c);
+    if (p->d) printf(".d = %d,", p->d);
+    printf("\\n");
 }
 
 static void convert(@struct_new *p, @struct_old *old)
@@ -48,6 +44,9 @@ static void convert(@struct_new *p, @struct_old *old)
     p->b = old->b;
 }
 
+"""
+
+code_text_body_1 = """
 int main()
 {
     @struct_new n = {0};
@@ -55,48 +54,22 @@ int main()
     output(&n);
     return 0;
 }
-
 """
 
 code_text_body_n = """
-static void output(@struct_new *p, int cnt)
-{
-    int i;
-    printf("@struct_new @vname[] = {\\n");
-    for (i = 0; i < cnt; i++) {
-        printf("\\t{\\n");
-        if (p->a) printf("\\t\\t.a = %d,\\n", p->a);
-        if (p->b) printf("\\t\\t.b = %d,\\n", p->b);
-        if (p->c) printf("\\t\\t.c = %d,\\n", p->c);
-        if (p->d) printf("\\t\\t.d = %d,\\n", p->d);
-        printf("\\t},\\n");
-        p++;
-    }
-    printf("};\\n");
-}
-
-static void convert(@struct_new *p, @struct_old *old, int cnt)
-{
-    int i;
-    for (i = 0; i < cnt; i++) {
-        p->a = old->a;
-        p->b = old->b;
-        p++;
-        old++;
-    }
-}
-
 int main()
 {
+    int i;
     int cnt = sizeof(@vname) / sizeof(@struct_old);
     int size = sizeof(@struct_new) * cnt;
     struct new_t *n = malloc(size);
     memset(n, 0, size);
-    convert(n, @vname, cnt);
-    output(n, cnt);
+    for (i = 0; i < cnt; i++) {
+        convert(&n[i], &@vname[i]);
+        output(&n[i]);
+    }
     return 0;
 }
-
 """
 
 def readLocal(local, buffering=-1):
@@ -141,6 +114,26 @@ def cleanup():
         os.system('rm -f __code__*')
         return
 
+def ctext_format(txt, vname):
+    global struct_new
+    res = []
+    lines = txt.splitlines()
+    res.append('%s %s = {' %(struct_new, vname))
+    if (len(lines) > 1):
+        for l in lines:
+            res.append('\t{')
+            l = l.replace('.', '\t\t.')
+            l = l.replace(',', ',\n')
+            res.append(l)
+            res.append('\t},')
+    else:
+        for l in lines:
+            l = l.replace('.', '\t.')
+            l = l.replace(',', ',\n')
+            res.append(l)
+    res.append('};')
+    return '\n'.join(res)
+
 def main():
     global pattern
     for i in range(1, len(sys.argv)):
@@ -151,6 +144,7 @@ def main():
             vname = m.group(1)
             print('converting %s:%s ...' %(f, vname))
             new_vtext = convert(vtext, vname)
+            new_vtext = ctext_format(new_vtext, vname)
             text = text.replace(vtext, new_vtext)
             saveLocal(f, text)
     cleanup()
