@@ -1,0 +1,8 @@
+[tile-fusion]
+layer = 
+	dim=224x224,flt=7x7_2x2,pad=3_3_3_3
+	dim=112x112,flt=3x3_2x2,pad_type=SAME
+	dim=56x56,flt=3x3,pad_type=SAME
+	dim=56x56
+tile_dim = 56x20
+plot = 1
