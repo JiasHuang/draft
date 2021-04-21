@@ -61,14 +61,14 @@ class Layer:
         top = pad_h // 2
         bottom = pad_h - top
         self.pad = Pad(left, right, top, bottom)
-    def get_tiles(self, tile_w, tile_h):
+    def get_output_tiles(self, tile_w, tile_h):
         tiles = []
         y = 0
-        while y < self.h:
+        while y < self.out_h:
             x = 0
-            while x < self.w:
-                w = min(tile_w, self.w - x)
-                h = min(tile_h, self.h - y)
+            while x < self.out_w:
+                w = min(tile_w, self.out_w - x)
+                h = min(tile_h, self.out_h - y)
                 tiles.append(Tile(x, y, w, h))
                 x += w
             y += tile_h
@@ -133,35 +133,39 @@ class LoadConfig(argparse.Action):
             if k in ['layer']:
                 vals = re.split('\s| ', cfg['tile-fusion'][k].strip())
                 setattr(namespace, k, vals)
+            elif k in ['plot']:
+                setattr(namespace, k, str2bool(cfg['tile-fusion'][k]))
             else:
                 setattr(namespace, k, cfg['tile-fusion'][k])
 
-def do_tile_fusion(layers, last_layer_tile_w, last_layer_tile_h):
+# Note: Number of tiles_by_layer = Number of layers + last output
+def do_tile_fusion(layers, last_output_tile_w, last_output_tile_h):
     tiles_by_layer = []
     # tiling from bottom up
+    tiles_by_layer.insert(0, layers[-1].get_output_tiles(last_output_tile_w, last_output_tile_h))
     for idx, layer in enumerate(layers[::-1]):
-        if idx == 0:
-            tiles_by_layer.insert(0, layer.get_tiles(last_layer_tile_w, last_layer_tile_h))
-        else:
-            tiles = []
-            for out_tile in tiles_by_layer[0]:
-                tiles.append(layer.get_tile_by_output(out_tile))
-            tiles_by_layer.insert(0, tiles)
+        tiles = []
+        for out_tile in tiles_by_layer[0]:
+            tiles.append(layer.get_tile_by_output(out_tile))
+        tiles_by_layer.insert(0, tiles)
 
     print('-' * 80)
     for idx, layer in enumerate(layers):
         print('layer {}'.format(idx))
         for tile_idx, tile in enumerate(tiles_by_layer[idx]):
-            print('\ttile {} --- ({}, {}) {}x{}'.format(tile_idx, tile.x, tile.y, tile.w, tile.h))
+            next_tile = tiles_by_layer[idx+1][tile_idx]
+            print('\ttile {} : in ({}, {}) {}x{} -> out ({}, {}) {}x{}'.format(
+                tile_idx, tile.x, tile.y, tile.w, tile.h,
+                next_tile.x, next_tile.y, next_tile.w, next_tile.h))
 
     return tiles_by_layer
 
 def do_plot(layers, tiles_by_layer):
 
-    fig = plt.figure(figsize=(80,80))
+    fig = plt.figure(figsize=(80, 80))
     ax = fig.add_subplot()
 
-    #draw layers
+    # draw layers
     x = 0
     y = 0
     max_h = 0
@@ -172,7 +176,8 @@ def do_plot(layers, tiles_by_layer):
         # w/o padding
         pos = (x + layer.pad.left, y + layer.pad.top)
         ax.add_patch(Rectangle(pos, layer.w, layer.h, color='blue', fill=False))
-        plt.text(x, -10, 'layer {}x{} (pad: {}x{})\nflt {}x{} stride {}x{} dilation {}x{}'.format(layer.w, layer.h, w, h,
+        plt.text(x, -10, 'layer {}x{} (pad: {}x{})\nflt {}x{} stride {}x{} dilation {}x{}'.format(
+            layer.w, layer.h, w, h,
             layer.flt.w, layer.flt.h,
             layer.flt.sx, layer.flt.sy,
             layer.flt.dx, layer.flt.dy))
@@ -181,10 +186,20 @@ def do_plot(layers, tiles_by_layer):
                 pos = (x + layer.pad.left + tile.x, y + layer.pad.top + tile.y)
                 ax.add_patch(Rectangle(pos, tile.w, tile.h, color = 'red', ls=':', fill=False))
                 plt.text(pos[0], pos[1], 'tile-{} ({},{}) {}x{}'.format(tile_idx, tile.x, tile.y, tile.w, tile.h))
-        x += max(w + 10, 100)
+        x += w + 10
         max_h = max(max_h, h)
 
-    #display plot
+    # last output
+    w, h = layers[-1].out_w, layers[-1].out_h
+    ax.add_patch(Rectangle((x, y), w, h, color = 'black', fill=False))
+    for tile_idx, tile in enumerate(tiles_by_layer[-1]):
+        if tile.w and tile.h:
+            pos = (x + tile.x, y + tile.y)
+            ax.add_patch(Rectangle(pos, tile.w, tile.h, color = 'red', ls=':', fill=False))
+            plt.text(pos[0], pos[1], 'tile-{} ({},{}) {}x{}'.format(tile_idx, tile.x, tile.y, tile.w, tile.h))
+    x += w
+
+    # display plot
     plt.xlim(0, x)
     plt.ylim(0, max_h)
     plt.gca().invert_yaxis()
@@ -222,7 +237,7 @@ def main():
 
     print('-' * 80)
     for idx, layer in enumerate(layers):
-        print('layer {} : in {}x{} pad {}x{} ({}, {}, {}, {}) out {}x{}'.format(
+        print('layer {} : in {}x{} -> pad {}x{} ({}, {}, {}, {}) -> out {}x{}'.format(
             idx, layer.w, layer.h,
             layer.w + layer.pad.left + layer.pad.right, layer.h + layer.pad.top + layer.pad.bottom,
             layer.pad.left, layer.pad.right, layer.pad.top, layer.pad.bottom,

@@ -4,4 +4,4 @@ layer =
 	in=112x112,out=56x56,flt=3x3,stride=2x2,pad_type=SAME
 	in=56x56,out=56x56,flt=3x3,pad_type=SAME
 tile_dim = 56x20
-plot = 1
+plot = 0
