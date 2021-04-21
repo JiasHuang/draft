@@ -26,7 +26,7 @@ class Pad:
                 self.bottom = vals[3]
 
 class Flt:
-    def __init__(self, w, h, sx = 1, sy = 1, dx = 1, dy = 1):
+    def __init__(self, w, h, sx=1, sy=1, dx=1, dy=1):
         self.w = w
         self.h = h
         self.sx = sx
@@ -44,8 +44,18 @@ class Flt:
         if m:
             self.dx, self.dy = int(m.group(1)), int(m.group(2))
 
+class Tile:
+    def __init__(self, x, y, w, h, tp=None):
+        self.x = x
+        self.y = y
+        self.w = w
+        self.h = h
+        self.tp = tp
+    def get_str(self):
+        return '(%d, %d) %dx%d' %(self.x, self.y, self.w, self.h)
+
 class Layer:
-    def __init__(self, w = 0, h = 0, out_w = 0, out_h = 0, flt = None, pad = None, pad_type = None):
+    def __init__(self, w=0, h=0, out_w=0, out_h=0, flt=None, pad=None, pad_type=None):
         self.w = w
         self.w = h
         self.out_w = out_w
@@ -73,12 +83,15 @@ class Layer:
                 x += w
             y += tile_h
         return tiles
-    def get_tile_by_output(self, out_tile):
+    def get_tiles_by_output(self, out_tile):
         # w/ paddings
         x = out_tile.x * self.flt.sx
         y = out_tile.y * self.flt.sy
         w = (out_tile.w - 1) * self.flt.sx + self.flt.w + (self.flt.w - 1) * (self.flt.dx - 1)
         h = (out_tile.h - 1) * self.flt.sy + self.flt.h + (self.flt.h - 1) * (self.flt.dy - 1)
+        if self.pad.left == 0 and self.pad.right == 0 and self.pad.top == 0 and self.pad.bottom == 0:
+            return Tile(x, y, w, h)
+        tp = Tile(x, y, w, h)
         # w/o paddings
         if x < self.pad.left:
             w = max(min(x + w - self.pad.left, self.w), 0)
@@ -98,7 +111,7 @@ class Layer:
         else:
             h = 0
             y = self.h
-        return Tile(x, y, w, h)
+        return Tile(x, y, w, h, tp)
     def parse_desc(self, desc):
         m = re.search('in=(\d+)x(\d+)', desc)
         if m:
@@ -117,13 +130,6 @@ class Layer:
         w = self.w + self.pad.left + self.pad.right
         h = self.h + self.pad.top + self.pad.bottom
         return (w, h)
-
-class Tile:
-    def __init__(self, x, y, w, h):
-        self.x = x
-        self.y = y
-        self.w = w
-        self.h = h
 
 class LoadConfig(argparse.Action):
     def __call__(self, parser, namespace, values, option_string=None):
@@ -146,7 +152,7 @@ def do_tile_fusion(layers, last_output_tile_w, last_output_tile_h):
     for idx, layer in enumerate(layers[::-1]):
         tiles = []
         for out_tile in tiles_by_layer[0]:
-            tiles.append(layer.get_tile_by_output(out_tile))
+            tiles.append(layer.get_tiles_by_output(out_tile))
         tiles_by_layer.insert(0, tiles)
 
     print('-' * 80)
@@ -154,9 +160,12 @@ def do_tile_fusion(layers, last_output_tile_w, last_output_tile_h):
         print('layer {}'.format(idx))
         for tile_idx, tile in enumerate(tiles_by_layer[idx]):
             next_tile = tiles_by_layer[idx+1][tile_idx]
-            print('\ttile {} : in ({}, {}) {}x{} -> out ({}, {}) {}x{}'.format(
-                tile_idx, tile.x, tile.y, tile.w, tile.h,
-                next_tile.x, next_tile.y, next_tile.w, next_tile.h))
+            msg = []
+            msg.append('in ' + tile.get_str())
+            if tile.tp:
+                msg.append('pad ' + tile.tp.get_str())
+            msg.append('out ' + next_tile.get_str())
+            print('\ttitle %s : %s' %(tile_idx, ' -> '.join(msg)))
 
     return tiles_by_layer
 
@@ -237,11 +246,13 @@ def main():
 
     print('-' * 80)
     for idx, layer in enumerate(layers):
-        print('layer {} : in {}x{} -> pad {}x{} ({}, {}, {}, {}) -> out {}x{}'.format(
-            idx, layer.w, layer.h,
+        msg = []
+        msg.append('in %dx%d' %(layer.w, layer.h))
+        msg.append('pad %dx%d (%d, %d, %d, %d)' %(
             layer.w + layer.pad.left + layer.pad.right, layer.h + layer.pad.top + layer.pad.bottom,
-            layer.pad.left, layer.pad.right, layer.pad.top, layer.pad.bottom,
-            layer.out_w, layer.out_h))
+            layer.pad.left, layer.pad.right, layer.pad.top, layer.pad.bottom))
+        msg.append('out %dx%d' %(layer.out_w, layer.out_h))
+        print('layer %d : %s' %(idx, ' -> '.join(msg)))
 
     tile_dim = list(map(int, args.tile_dim.split('x')))
     tiles_by_layer = do_tile_fusion(layers, tile_dim[0], tile_dim[1])
