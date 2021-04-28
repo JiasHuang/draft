@@ -82,13 +82,15 @@ def parse_subgraph(args, model):
 def do_plot(args, ctxs):
     g = Digraph()
     for ctx in ctxs:
-        if ctx.fus_grp:
+        if len(ctx.fus_grp) > 1:
             with g.subgraph(name='cluster_'+str(ctx.fus_grp)) as c:
                 c.attr(color='blue')
                 c.attr(label=str(ctx.fus_grp))
                 c.edge_attr['style'] = 'invis'
                 for x in range(len(ctx.fus_grp) - 1):
-                    c.edge(ctxs[x].nodename(), ctxs[x+1].nodename())
+                    a = ctx.fus_grp[x]
+                    b = ctx.fus_grp[x+1]
+                    c.edge(ctxs[a].nodename(), ctxs[b].nodename())
     for ctx in ctxs:
         g.node(ctx.nodename())
         for succ in ctx.succ:
@@ -109,6 +111,7 @@ def main():
         print(ctx)
 
     ctxs[0].fus_grp = [0, 1, 2, 3]
+    ctxs[6].fus_grp = [6, 7, 8, 9]
 
     if args.graph:
         do_plot(args, ctxs)
