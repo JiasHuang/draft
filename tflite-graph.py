@@ -19,13 +19,16 @@ class OpInfo:
         self.op_name = tflite.opcode2name(self.op_code)
         self.output = None
         self.succ = []
-        self.fus_grp = []
+        self.fus_grp = [] # OpInfo Refs List
 
     def __str__(self):
         return '%d_%s' %(self.idx, self.op_name)
 
     def nodename(self):
         return '%d_%s' %(self.idx, self.op_name)
+
+    def fus_idxs(self):
+        return [op.idx for op in self.fus_grp]
 
 class ModelParser:
     def __init__(self, args):
@@ -79,16 +82,24 @@ class ModelParser:
             self.ops.append(info)
         return self.ops
 
+    def fus_grp(self, org_idx, cur_idx):
+        org = self.ops[org_idx]
+        cur = self.ops[cur_idx]
+        org.fus_grp.append(cur) # OpInfo Refs List
+        if cur_idx != org_idx:
+            cur.fus_grp = org.fus_grp # copy OpInfo Refs List
+
     def plot(self):
         g = graphviz.Digraph()
         for op in self.ops:
             if len(op.fus_grp) > 1:
-                with g.subgraph(name='cluster_'+str(op.fus_grp)) as c:
+                with g.subgraph(name='cluster_'+str(op.idx)) as c:
+                    fus_idxs = op.fus_idxs()
                     c.attr(color='blue')
-                    c.attr(label=str(op.fus_grp))
+                    c.attr(label=str(fus_idxs))
                     c.edge_attr['style'] = 'invis'
-                    for x in range(len(op.fus_grp) - 1):
-                        c.edge(str(op.fus_grp[x]), str(op.fus_grp[x+1]))
+                    for x in range(len(fus_idxs) - 1):
+                        c.edge(str(fus_idxs[x]), str(fus_idxs[x+1]))
         for op in self.ops:
             descs = []
             descs.append(op.nodename())
@@ -100,8 +111,8 @@ class ModelParser:
 
         # input & output endpoints
         last = self.ops[-1].idx
-        g.edge('input', '0', numpy.array2string(self.get_input(0, 0), separator='x'))
-        g.edge(str(last), 'output', numpy.array2string(self.get_output(last, 0), separator='x'))
+        g.edge('Input', '0', numpy.array2string(self.get_input(0, 0), separator='x'))
+        g.edge(str(last), 'Output', numpy.array2string(self.get_output(last, 0), separator='x'))
 
         if self.args.render:
             g.render()
@@ -142,7 +153,10 @@ def main():
     mp.load_model()
     mp.parse_subgraph()
 
-    mp.ops[0].fus_grp = [0, 1, 2, 3]
+    # fus grp
+    fus_grp = [0, 1, 2, 3]
+    for i in fus_grp:
+        mp.fus_grp(fus_grp[0], i)
 
     if args.test:
         tflite_ut.unit_test(mp)
