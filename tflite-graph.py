@@ -95,8 +95,7 @@ class ModelParser:
             if len(op.fus_grp) > 1:
                 with g.subgraph(name='cluster_'+str(op.idx)) as c:
                     fus_idxs = op.fus_idxs()
-                    c.attr(color='blue')
-                    c.attr(label=str(fus_idxs))
+                    c.attr(color='blue', fontcolor='blue', label=str(fus_idxs))
                     c.edge_attr['style'] = 'invis'
                     for x in range(len(fus_idxs) - 1):
                         c.edge(str(fus_idxs[x]), str(fus_idxs[x+1]))
