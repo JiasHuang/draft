@@ -7,6 +7,7 @@ import argparse
 import tflite
 import numpy
 import graphviz
+import tflite_ut
 
 class defvals:
     section = 'tflite-graph'
@@ -134,6 +135,7 @@ def main():
     parser.add_argument('-m', '--model', required=True)
     parser.add_argument('-g', '--graph', type=str2bool, nargs='?', const=True, default=False)
     parser.add_argument('-r', '--render', type=str2bool, nargs='?', const=True, default=False)
+    parser.add_argument('-t', '--test', type=str2bool, nargs='?', const=True, default=False)
     args = parser.parse_args()
 
     mp = ModelParser(args)
@@ -141,6 +143,9 @@ def main():
     mp.parse_subgraph()
 
     mp.ops[0].fus_grp = [0, 1, 2, 3]
+
+    if args.test:
+        tflite_ut.unit_test(mp)
 
     if args.graph:
         mp.plot()
