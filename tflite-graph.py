@@ -19,7 +19,8 @@ class OpInfo:
         self.op_name = tflite.opcode2name(self.op_code)
         self.output = None
         self.succ = []
-        self.fus_grp = [] # OpInfo Refs List
+        self.fus_grp = [] # refs list (only for 1st op)
+        self.fus_org = None # 1st op ref (only for other ops)
 
     def __str__(self):
         return '%d_%s' %(self.idx, self.op_name)
@@ -87,9 +88,9 @@ class ModelParser:
         org = self.ops[org_idx]
         for cur_idx in idxs:
             cur = self.ops[cur_idx]
-            org.fus_grp.append(cur) # OpInfo Refs List
+            org.fus_grp.append(cur) # refs list (only for 1st op)
             if cur_idx != org_idx:
-                cur.fus_grp = org.fus_grp # copy OpInfo Refs List
+                cur.fus_org = org # 1st op ref (only for other ops)
 
     def plot(self):
         g = graphviz.Digraph()
