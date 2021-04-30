@@ -82,12 +82,14 @@ class ModelParser:
             self.ops.append(info)
         return self.ops
 
-    def fus_grp(self, org_idx, cur_idx):
+    def add_fus_idxs(self, idxs):
+        org_idx = idxs[0]
         org = self.ops[org_idx]
-        cur = self.ops[cur_idx]
-        org.fus_grp.append(cur) # OpInfo Refs List
-        if cur_idx != org_idx:
-            cur.fus_grp = org.fus_grp # copy OpInfo Refs List
+        for cur_idx in idxs:
+            cur = self.ops[cur_idx]
+            org.fus_grp.append(cur) # OpInfo Refs List
+            if cur_idx != org_idx:
+                cur.fus_grp = org.fus_grp # copy OpInfo Refs List
 
     def plot(self):
         g = graphviz.Digraph()
@@ -152,10 +154,8 @@ def main():
     mp.load_model()
     mp.parse_subgraph()
 
-    # fus grp
-    fus_grp = [0, 1, 2, 3]
-    for i in fus_grp:
-        mp.fus_grp(fus_grp[0], i)
+    # fusion indices
+    mp.add_fus_idxs([0, 1, 2, 3])
 
     if args.test:
         tflite_ut.unit_test(mp)
