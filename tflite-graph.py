@@ -156,7 +156,8 @@ def main():
     mp.parse_subgraph()
 
     # fusion indices
-    mp.add_fus_idxs([0, 1, 2, 3])
+    mp.add_fus_idxs([0, 1, 3])
+    mp.add_fus_idxs([1, 5, 6])
 
     if args.test:
         tflite_ut.unit_test(mp)

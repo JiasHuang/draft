@@ -5,3 +5,5 @@ layer =
 	in=56x56,out=56x56,flt=3x3,pad_type=SAME
 tile_dim = 56x20
 plot = 0
+
+[tflite-graph]
