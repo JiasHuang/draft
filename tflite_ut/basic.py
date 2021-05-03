@@ -20,9 +20,24 @@ def ut_double_fused(mp):
             errcnt += 1
     return errcnt
 
+def ut_dependence(mp):
+    errcnt = 0
+    executed = []
+    for op in mp.ops:
+        for fus_op in op.fus_grp:
+            for pred in fus_op.pred:
+                if pred not in executed:
+                    print('ERROR: %s dependence error: %s not ready' %(fus_op.nodename(), mp.ops[pred].nodename()))
+                    errcnt += 1
+            executed.append(fus_op.idx)
+        if op.idx not in executed:
+            executed.append(op.idx)
+    return errcnt
+
 def unit_test(mp):
     errcnt = 0
     errcnt += ut_double_fused(mp)
     errcnt += ut_next_successor(mp)
+    errcnt += ut_dependence(mp)
     return errcnt
 

@@ -18,6 +18,7 @@ class OpInfo:
         self.op_code = op_code
         self.op_name = tflite.opcode2name(self.op_code)
         self.output = None
+        self.pred = []
         self.succ = []
         self.fus_grp = [] # refs list (only for 1st op)
         self.fus_org = None # 1st op ref (only for other ops)
@@ -81,6 +82,10 @@ class ModelParser:
             info.succ = self.get_successor(op_idx)
             info.output = self.get_output(op_idx, 0)
             self.ops.append(info)
+        # updatae predecessor
+        for op in self.ops:
+            for succ in op.succ:
+               self.ops[succ].pred.append(op.idx)
         return self.ops
 
     def add_fus_idxs(self, idxs):
@@ -134,7 +139,7 @@ class LoadConfig(argparse.Action):
 
 def str2bool(v):
     if isinstance(v, bool):
-       return v
+        return v
     if v.lower() in ('yes', 'true', 't', 'y', '1'):
         return True
     elif v.lower() in ('no', 'false', 'f', 'n', '0'):
@@ -158,6 +163,7 @@ def main():
     # fusion indices
     mp.add_fus_idxs([0, 1, 3])
     mp.add_fus_idxs([1, 5, 6])
+    mp.add_fus_idxs([25, 26, 30])
 
     if args.test:
         tflite_ut.unit_test(mp)
