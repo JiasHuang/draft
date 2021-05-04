@@ -79,14 +79,14 @@ class ModelParser:
         for op_idx in range(self.subgraph.OperatorsLength()):
             op = self.subgraph.Operators(op_idx)
             op_info = OpInfo(op_idx, self.model.OperatorCodes(op.OpcodeIndex()).BuiltinCode())
+            op_info.output = self.get_output(op_idx, 0)
             self.ops.append(op_info)
-        # updatae OpInfo: predecessor, successor and output
+        # updatae OpInfo: predecessor and successor
         for op in self.ops:
             for succ_idx in self.get_successor(op.idx):
                 succ_op = self.ops[succ_idx]
                 op.succ.append(succ_op)
                 succ_op.pred.append(op)
-            op.output = self.get_output(op.idx, 0)
         return self.ops
 
     def add_fus_idxs(self, idxs):
