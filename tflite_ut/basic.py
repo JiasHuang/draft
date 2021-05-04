@@ -7,7 +7,7 @@ def ut_next_successor(mp):
         for i in range(len(op.fus_grp) - 1):
             x = op.fus_grp[i]
             y = op.fus_grp[i+1]
-            if y.idx not in x.succ:
+            if y not in x.succ:
                 print('ERROR: %s not %s\'s successor' %(y.nodename(), x.nodename()))
                 errcnt += 1
     return errcnt
@@ -20,14 +20,14 @@ def ut_double_fused(mp):
             errcnt += 1
     return errcnt
 
-def ut_dependence(mp):
+def ut_dependency(mp):
     errcnt = 0
     executed = []
     for op in mp.ops:
         for fus_op in op.fus_grp:
             for pred in fus_op.pred:
-                if pred not in executed:
-                    print('ERROR: %s dependence error: %s not ready' %(fus_op.nodename(), mp.ops[pred].nodename()))
+                if pred.idx not in executed:
+                    print('ERROR: %s dependency failed, %s not ready' %(fus_op.nodename(), pred.nodename()))
                     errcnt += 1
             executed.append(fus_op.idx)
         if op.idx not in executed:
@@ -38,6 +38,6 @@ def unit_test(mp):
     errcnt = 0
     errcnt += ut_double_fused(mp)
     errcnt += ut_next_successor(mp)
-    errcnt += ut_dependence(mp)
+    errcnt += ut_dependency(mp)
     return errcnt
 

@@ -78,14 +78,15 @@ class ModelParser:
         self.subgraph = self.model.Subgraphs(0)
         for op_idx in range(self.subgraph.OperatorsLength()):
             op = self.subgraph.Operators(op_idx)
-            info = OpInfo(op_idx, self.model.OperatorCodes(op.OpcodeIndex()).BuiltinCode())
-            info.succ = self.get_successor(op_idx)
-            info.output = self.get_output(op_idx, 0)
-            self.ops.append(info)
-        # updatae predecessor
+            op_info = OpInfo(op_idx, self.model.OperatorCodes(op.OpcodeIndex()).BuiltinCode())
+            self.ops.append(op_info)
+        # updatae OpInfo: predecessor, successor and output
         for op in self.ops:
-            for succ in op.succ:
-               self.ops[succ].pred.append(op.idx)
+            for succ_idx in self.get_successor(op.idx):
+                succ_op = self.ops[succ_idx]
+                op.succ.append(succ_op)
+                succ_op.pred.append(op)
+            op.output = self.get_output(op.idx, 0)
         return self.ops
 
     def add_fus_idxs(self, idxs):
@@ -93,6 +94,8 @@ class ModelParser:
         org = self.ops[org_idx]
         for cur_idx in idxs:
             cur = self.ops[cur_idx]
+            if cur in org.fus_grp:
+                continue
             org.fus_grp.append(cur) # refs list (only for 1st op)
             if cur_idx != org_idx:
                 cur.fus_org = org # 1st op ref (only for other ops)
@@ -114,7 +117,7 @@ class ModelParser:
             for succ in op.succ:
                 descs = []
                 descs.append(numpy.array2string(op.output, separator='x'))
-                g.edge(str(op.idx), str(succ), label='\n'.join(descs))
+                g.edge(str(op.idx), str(succ.idx), label='\n'.join(descs))
 
         # input & output endpoints
         last = self.ops[-1].idx
