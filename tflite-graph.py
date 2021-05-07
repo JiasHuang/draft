@@ -8,16 +8,31 @@ import tflite
 import numpy
 import graphviz
 import tflite_ut
+import fusion
+
+def dim2str(a):
+    if isinstance(a, numpy.ndarray):
+        return numpy.array2string(a, separator='x')
+    return str(a)
 
 class defvals:
     section = 'tflite-graph'
+
+class TensorInfo:
+    def __init__(self, idx, tensor):
+        self.idx = idx
+        self.tensor = tensor
+
+    def __str__(self):
+        return dim2str(self.tensor.ShapeAsNumpy())
 
 class OpInfo:
     def __init__(self, idx, op_code):
         self.idx = idx
         self.op_code = op_code
         self.op_name = tflite.opcode2name(self.op_code)
-        self.output = None
+        self.inputs = None # TensorInfo Refs
+        self.outputs = None # TensorInfo Refs
         self.pred = []
         self.succ = []
         self.fus_grp = [] # refs list (only for 1st op)
@@ -37,6 +52,7 @@ class ModelParser:
         self.args = args
         self.model = None
         self.subgraph = None
+        self.tensors = []
         self.ops = []
 
     def __str__(self):
@@ -58,28 +74,26 @@ class ModelParser:
                     results.append(i)
         return results
 
-    def get_input(self, op_idx, i):
+    def get_inputs(self, op_idx):
         op = self.subgraph.Operators(op_idx)
-        if i in range(op.InputsLength()):
-            tensor_index = op.Inputs(i)
-            tensor = self.subgraph.Tensors(tensor_index)
-            return tensor.ShapeAsNumpy()
-        return None
+        tensor_idxs = [op.Inputs(i) for i in range(op.InputsLength())]
+        return [self.tensors[i] for i in tensor_idxs]
 
-    def get_output(self, op_idx, i):
+    def get_outputs(self, op_idx):
         op = self.subgraph.Operators(op_idx)
-        if i in range(op.OutputsLength()):
-            tensor_index = op.Outputs(i)
-            tensor = self.subgraph.Tensors(tensor_index)
-            return tensor.ShapeAsNumpy()
-        return None
+        tensor_idxs = [op.Outputs(i) for i in range(op.OutputsLength())]
+        return [self.tensors[i] for i in tensor_idxs]
 
     def parse_subgraph(self):
         self.subgraph = self.model.Subgraphs(0)
+        for tensor_idx in range(self.subgraph.TensorsLength()):
+            tensor = self.subgraph.Tensors(tensor_idx)
+            self.tensors.append(TensorInfo(tensor_idx, tensor))
         for op_idx in range(self.subgraph.OperatorsLength()):
             op = self.subgraph.Operators(op_idx)
             op_info = OpInfo(op_idx, self.model.OperatorCodes(op.OpcodeIndex()).BuiltinCode())
-            op_info.output = self.get_output(op_idx, 0)
+            op_info.inputs = self.get_inputs(op_idx)
+            op_info.outputs = self.get_outputs(op_idx)
             self.ops.append(op_info)
         # updatae OpInfo: predecessor and successor
         for op in self.ops:
@@ -116,13 +130,14 @@ class ModelParser:
             g.node(str(op.idx), label='\n'.join(descs))
             for succ in op.succ:
                 descs = []
-                descs.append(numpy.array2string(op.output, separator='x'))
+                tensor = op.outputs[0]
+                descs.append(tensor.__str__())
                 g.edge(str(op.idx), str(succ.idx), label='\n'.join(descs))
 
         # input & output endpoints
         last = self.ops[-1].idx
-        g.edge('Input', '0', numpy.array2string(self.get_input(0, 0), separator='x'))
-        g.edge(str(last), 'Output', numpy.array2string(self.get_output(last, 0), separator='x'))
+        g.edge('Input', '0', self.ops[0].inputs[0].__str__())
+        g.edge(str(last), 'Output', self.ops[last].outputs[0].__str__())
 
         if self.args.render:
             g.render()
@@ -163,10 +178,7 @@ def main():
     mp.load_model()
     mp.parse_subgraph()
 
-    # fusion indices
-    mp.add_fus_idxs([0, 1, 3])
-    mp.add_fus_idxs([1, 5, 6])
-    mp.add_fus_idxs([25, 26, 30])
+    fusion.do_fusion(mp)
 
     if args.test:
         tflite_ut.unit_test(mp)
