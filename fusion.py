@@ -55,22 +55,36 @@ def caculate_dram_usage(mp):
         fus_grp = op.fus_org.fus_grp if op.fus_org else op.fus_grp
         fus_pred = None
         fus_succ = None
+        dram_rd = []
+        dram_wr = []
         if len(fus_grp) > 1:
             grp_idx = fus_grp.index(op)
             fus_pred = fus_grp[grp_idx - 1] if grp_idx else None
             fus_succ = fus_grp[grp_idx + 1] if grp_idx < len(fus_grp) - 1 else None
-        for input in op.inputs:
-            if input.head: # Only I/O tensors
-                sz = input.size()
+        for x in op.inputs:
+            if x.head: # Only I/O tensors
+                sz = x.size()
                 size += sz
-                if input.head != fus_pred:
+                if x.head != fus_pred:
                     size_fus += sz
-        for output in op.outputs:
-            if output.head: # Only I/O tensors
-                sz = output.size()
+                    dram_rd.append(x)
+        for x in op.outputs:
+            if x.head: # Only I/O tensors
+                sz = x.size()
                 size += sz
-                if fus_succ not in output.tail:
+                if x.tail[0] != fus_succ or len(x.tail) > 1:
                     size_fus += sz
+                    dram_wr.append(x)
+
+        # Debug
+        if dram_rd or dram_wr:
+            strs = []
+            if dram_rd:
+                strs.append('rd ' + ','.join([str(x) for x in dram_rd]))
+            if dram_wr:
+                strs.append('wr ' + ','.join([str(x) for x in dram_wr]))
+            print('%s: %s' %(str(op), ', '.join(strs)))
+
         total += size
         total_fus += size_fus
     return float(total_fus) / float(total)
