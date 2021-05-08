@@ -192,7 +192,7 @@ def main():
     mp.parse_subgraph()
 
     fusion.do_fusion(mp)
-    print('dram usage %d' %(fusion.caculate_dram_usage(mp)))
+    print('dram usage {:.0%}'.format(fusion.caculate_dram_usage(mp)))
 
     if args.test:
         tflite_ut.unit_test(mp)

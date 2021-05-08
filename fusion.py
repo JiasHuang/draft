@@ -2,6 +2,7 @@
 
 class defvals:
     policy = 'fus_simple_no_branch'
+    #policy = 'fus_simple'
 
 def fus_simple(mp):
     fused = []
@@ -47,21 +48,30 @@ def do_fusion(mp):
 
 def caculate_dram_usage(mp):
     total = 0
+    total_fus = 0
     for op in mp.ops:
-        rd = True
-        wr = True
+        size = 0
+        size_fus = 0
         fus_grp = op.fus_org.fus_grp if op.fus_org else op.fus_grp
-        if fus_grp and fus_grp.index(op) != 0:
-            rd = False
-        if fus_grp and fus_grp.index(op) != len(fus_grp) - 1:
-            wr = False
-        if rd:
-            for input in op.inputs:
-                if input.head:
-                    total += input.size()
-        if wr:
-            for output in op.outputs:
-                if output.head:
-                    total += output.size()
-    return total
+        fus_pred = None
+        fus_succ = None
+        if len(fus_grp) > 1:
+            grp_idx = fus_grp.index(op)
+            fus_pred = fus_grp[grp_idx - 1] if grp_idx else None
+            fus_succ = fus_grp[grp_idx + 1] if grp_idx < len(fus_grp) - 1 else None
+        for input in op.inputs:
+            if input.head: # Only I/O tensors
+                sz = input.size()
+                size += sz
+                if input.head != fus_pred:
+                    size_fus += sz
+        for output in op.outputs:
+            if output.head: # Only I/O tensors
+                sz = output.size()
+                size += sz
+                if fus_succ not in output.tail:
+                    size_fus += sz
+        total += size
+        total_fus += size_fus
+    return float(total_fus) / float(total)
 
