@@ -22,9 +22,17 @@ class TensorInfo:
     def __init__(self, idx, tensor):
         self.idx = idx
         self.tensor = tensor
+        self.head = None
+        self.tail = []
 
     def __str__(self):
         return dim2str(self.tensor.ShapeAsNumpy())
+
+    def size(self):
+        size = 1
+        for i in self.tensor.ShapeAsNumpy():
+            size *= i
+        return size
 
 class OpInfo:
     def __init__(self, idx, op_code):
@@ -101,6 +109,11 @@ class ModelParser:
                 succ_op = self.ops[succ_idx]
                 op.succ.append(succ_op)
                 succ_op.pred.append(op)
+                # update TensorInfo
+                for output in op.outputs:
+                    if output in succ_op.inputs:
+                        output.head = op
+                        output.tail.append(succ_op)
         return self.ops
 
     def add_fus_idxs(self, idxs):
@@ -131,13 +144,13 @@ class ModelParser:
             for succ in op.succ:
                 descs = []
                 tensor = op.outputs[0]
-                descs.append(tensor.__str__())
+                descs.append(str(tensor))
                 g.edge(str(op.idx), str(succ.idx), label='\n'.join(descs))
 
         # input & output endpoints
         last = self.ops[-1].idx
-        g.edge('Input', '0', self.ops[0].inputs[0].__str__())
-        g.edge(str(last), 'Output', self.ops[last].outputs[0].__str__())
+        g.edge('Input', '0', str(self.ops[0].inputs[0]))
+        g.edge(str(last), 'Output', str(self.ops[last].outputs[0]))
 
         if self.args.render:
             g.render()
@@ -179,6 +192,7 @@ def main():
     mp.parse_subgraph()
 
     fusion.do_fusion(mp)
+    print('dram usage %d' %(fusion.caculate_dram_usage(mp)))
 
     if args.test:
         tflite_ut.unit_test(mp)

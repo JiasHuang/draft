@@ -44,3 +44,24 @@ def fus_simple_no_branch(mp):
 
 def do_fusion(mp):
     eval('%s(mp)' %(defvals.policy))
+
+def caculate_dram_usage(mp):
+    total = 0
+    for op in mp.ops:
+        rd = True
+        wr = True
+        fus_grp = op.fus_org.fus_grp if op.fus_org else op.fus_grp
+        if fus_grp and fus_grp.index(op) != 0:
+            rd = False
+        if fus_grp and fus_grp.index(op) != len(fus_grp) - 1:
+            wr = False
+        if rd:
+            for input in op.inputs:
+                if input.head:
+                    total += input.size()
+        if wr:
+            for output in op.outputs:
+                if output.head:
+                    total += output.size()
+    return total
+
