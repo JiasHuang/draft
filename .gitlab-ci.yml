@@ -1,0 +1,34 @@
+stages:
+  - test
+  - deploy
+
+test:
+  stage: test
+  before_script:
+    - mkdir -p nfs_models
+    - sshfs pi@pi3:/home/pi/work/models/ nfs_models
+  script:
+    - pip3 install tflite graphviz
+    - /home/rd/work/draft/tflite-graph.py -m nfs_models/mobilenet_v1_1.0_224_quant.tflite -t -r | tee ut.log
+    - mkdir -p TOPS1
+    - mkdir -p out_aaa
+    - touch TOPS1/xxx.xlsx
+    - touch all.xlsx
+  after_script:
+    - umount nfs_models
+  artifacts:
+    paths:
+      - out_*
+      - TOPS*
+      - ./*.xlsx
+      - ./*.log
+
+deploy:
+  stage: deploy
+  before_script:
+    - mkdir -p nfs_upload
+    - sshfs pi@pi3:/home/pi/work/upload/ nfs_upload
+  script:
+    - cp -rf out_* TOPS* *.log *.xlsx nfs_upload || true
+  after_script:
+    - umount nfs_upload
